@@ -1,28 +1,41 @@
 import random
 import pygame
 import settings
+from settings import ENEMY_START_SPEED, ENEMY_MAX_SPEED, ENEMY_MAX_SIZE
 
 
 class Enemy:
-    def __init__(self):
-        # the image is loaded from disk only once
-        self.original = pygame.image.load(settings.asset("blazej.png")).convert_alpha()
+    def __init__(self,image,x=settings.WIDTH / 2, powers=True,
+                 start_speed = ENEMY_START_SPEED,
+                 max_speed = ENEMY_MAX_SPEED,
+                 max_size = ENEMY_MAX_SIZE):
+        self.original = pygame.image.load(settings.asset(image)).convert_alpha()
+        self.start_x = x
+        self.powers = powers
+        self.start_speed = start_speed
+        self.max_speed = max_speed
+        self.max_size = max_size
         self.reset()
 
     def reset(self):
         self.size = settings.ENEMY_START_SIZE
-        self.pos = pygame.Vector2(settings.WIDTH / 2, settings.HEIGHT / 2)
-        self.speed_x = settings.ENEMY_START_SPEED
-        self.speed_y = settings.ENEMY_START_SPEED
+        self.pos = pygame.Vector2(self.start_x, settings.HEIGHT / 2)
+        self.speed_x = self.start_speed
+        self.speed_y = self.start_speed
         self.rescale_image()
 
     def rescale_image(self):
         self.image = pygame.transform.scale(self.original, (self.size, self.size))
 
     def grow(self):
-        if self.size < settings.ENEMY_MAX_SIZE:
+        if self.size < self.max_size:
             self.size += settings.ENEMY_GROW
             self.rescale_image()
+
+    def random_action(self):
+        if not self.powers:
+            return 0
+        return random.randint(1, 4)
 
     def update(self, dt):
         self.pos.x += self.speed_x * dt
@@ -32,10 +45,10 @@ class Enemy:
         if self.pos.x + self.size > settings.WIDTH:
             self.pos.x = settings.WIDTH - self.size
             self.speed_x = -abs(self.speed_x)
-            action = random.randint(1, 4)
+            action = self.random_action()
             if action == 1:
                 self.speed_x = -min(abs(self.speed_x) + settings.ENEMY_ACCEL,
-                                    settings.ENEMY_MAX_SPEED)
+                                        self.max_speed)
             if action == 2:
                 self.grow()
 
@@ -43,10 +56,10 @@ class Enemy:
         if self.pos.x < 0:
             self.pos.x = 0
             self.speed_x = abs(self.speed_x)
-            action = random.randint(1, 4)
+            action = self.random_action()
             if action == 1:
                 self.speed_x = min(abs(self.speed_x) + settings.ENEMY_ACCEL,
-                                   settings.ENEMY_MAX_SPEED)
+                                       self.max_speed)
             if action == 2:
                 self.grow()
 
@@ -54,10 +67,10 @@ class Enemy:
         if self.pos.y + self.size > settings.HEIGHT:
             self.pos.y = settings.HEIGHT - self.size
             self.speed_y = -abs(self.speed_y)
-            action = random.randint(1, 4)
+            action = self.random_action()
             if action == 1:
                 self.speed_y = -min(abs(self.speed_y) + settings.ENEMY_ACCEL,
-                                    settings.ENEMY_MAX_SPEED)
+                                        self.max_speed)
             if action == 2:
                 self.grow()
 
@@ -65,10 +78,10 @@ class Enemy:
         if self.pos.y < 0:
             self.pos.y = 0
             self.speed_y = abs(self.speed_y)
-            action = random.randint(1, 4)
+            action = self.random_action()
             if action == 1:
                 self.speed_y = min(abs(self.speed_y) + settings.ENEMY_ACCEL,
-                                   settings.ENEMY_MAX_SPEED)
+                                       self.max_speed)
             if action == 2:
                 self.grow()
 
