@@ -6,7 +6,7 @@ LEVELS = [
         "enemies": [{"image": "blazej.png", "powers": False}],
     },
     {
-        "name": "Blazej's lougne",
+        "name": "Blazej's lounge",
         "milk": 3,
         "enemies": [{"image": "blazej.png", "powers": True}],
     },
@@ -20,7 +20,7 @@ LEVELS = [
     },
     {
         "name": "Principals office",
-        "milk": 25,
+        "milk": 5,
         "enemies": [
             {"image": "blazej.png", "powers": True},
             {"image": "chamilka.jpg", "powers": True},

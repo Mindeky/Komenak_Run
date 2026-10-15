@@ -20,12 +20,8 @@ class Game:
         self.small_font = pygame.font.SysFont("arial", 36)
         self.text_lost = big_font.render("YOUR EXPELLED!!!!!!", True, "red")
         self.text_again = big_font.render("AGAIN?? [space]", True, "black")
-        self.text_next = big_font.render("NEXT LEVEL?? [n]", True, "black")
-        self.text_won = big_font.render("YOU'VE SURVIVED", True, "green")
-
-
-
-
+        self.text_next = big_font.render("NEXT LEVEL?? [space]", True, "black")
+        self.text_won = big_font.render("YOU HAVE SURVIVED", True, "green")
 
         # images and sound
         background = pygame.image.load(settings.asset("utekaj.jpg")).convert()
@@ -66,6 +62,9 @@ class Game:
         for i, config in enumerate(level["enemies"]):
             x = settings.WIDTH * (i+1) / (count + 1)
             self.enemies.append(Enemy(x=x, **config))
+
+        self.player.reset()
+        self.milk.move_to_random_spot(self.player)
 
     def reset(self):
         self.hit_sound.stop()
@@ -111,7 +110,7 @@ class Game:
                 else:
                     self.state = "complete"
             else:
-                self.milk.move_to_random_spot()
+                self.milk.move_to_random_spot(self.player)
 
         # collision with the enemy
         for enemy in self.enemies:
@@ -139,7 +138,7 @@ class Game:
         elif self.state == "complete":
             self.screen.blit(self.big_player, (0,0)),
             self.draw_centered(self.text_won, 270)
-            self.draw_centered(self.text_again, 530)
+            self.draw_centered(self.text_next, 530)
 
         elif self.state == "won":
             self.screen.blit(self.big_player, (0,0)),

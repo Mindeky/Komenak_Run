@@ -11,10 +11,16 @@ class Milk:
         self.pos = pygame.Vector2(0, 0)
         self.move_to_random_spot()
 
-    def move_to_random_spot(self):
+    def move_to_random_spot(self, player=None):
         margin = settings.MILK_RADIUS + 20
-        self.pos.x = random.randint(margin, settings.WIDTH - margin)
-        self.pos.y = random.randint(margin, settings.HEIGHT - margin)
+        reach = settings.MILK_RADIUS + settings.PLAYER_SIZE / 2
+
+        while True:
+            self.pos.x = random.randint(margin, settings.WIDTH)
+            self.pos.y = random.randint(margin, settings.HEIGHT)
+
+            if player is None or player.center.distance_to(self.pos) > reach:
+                break
 
     def is_collected(self, player):
         reach = settings.MILK_RADIUS + settings.PLAYER_SIZE / 2
