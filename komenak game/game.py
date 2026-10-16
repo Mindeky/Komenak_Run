@@ -1,9 +1,11 @@
 import pygame
 import settings
+import random
 from levels import LEVELS
 from entities.player import Player
 from entities.enemy import Enemy
 from entities.milk import Milk
+from entities.powerups import Powerup
 from ui import render_text
 
 
@@ -58,12 +60,13 @@ class Game:
         self.hit_sound = pygame.mixer.Sound(settings.asset("touching.mp3"))
 
         # game objects
-        self.player = Player(100, 100)
+        self.player = Player(370, 200)
         self.milk = Milk()
         self.enemies = []
 
-        # level state
+        self.powerup_kinds = []
 
+        # level state
         self.level_index = 0
         self.score = 0
         self.goal = 0
@@ -83,6 +86,9 @@ class Game:
         self.state = "playing"
         self.player_lives = settings.PLAYER_LIVES
         self.invulnerable_time = 0
+        self.powerup_kinds = level.get("powerups", [])
+        self.powerup = None
+        self.powerup_timer = settings.POWERUP_SPAWN_TIME
         self.hit_sound.stop()
 
         count = len(level["enemies"])
@@ -96,6 +102,8 @@ class Game:
 
         self.banner_text = render_text(self.big_font, level["name"], "white")
         self.banner_time = 2.0
+
+        self.powerup_timer = settings.POWERUP_SPAWN_TIME #15
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -139,8 +147,8 @@ class Game:
             return
 
         self.invulnerable_time = max(0, self.invulnerable_time - self.dt)
-
         self.banner_time = max(0, self.banner_time - self.dt)
+        self.powerup_timer = max(0, self.powerup_timer - self.dt)
 
         keys = pygame.key.get_pressed()
         self.player.update(self.dt, keys)
@@ -158,6 +166,18 @@ class Game:
             else:
                 self.milk.move_to_random_spot(self.player)
 
+        if self.powerup_kinds and self.powerup is None and self.powerup_timer == 0:
+            self.powerup = Powerup(random.choice(self.powerup_kinds))
+            self.powerup_timer = settings.POWERUP_SPAWN_TIME
+
+        if self.powerup:
+            self.powerup.update(self.dt)
+            if self.powerup.is_collected(self.player):
+                self.apply_powerup(self.powerup.kind)
+                self.powerup = None
+            elif self.powerup.expired():
+                self.powerup = None
+
         # collision with the enemy
         if self.invulnerable_time == 0:
             for enemy in self.enemies:
@@ -174,6 +194,13 @@ class Game:
                         self.player.reset()
                     break
 
+    def apply_powerup(self, kind):
+        if kind == "shield":
+            self.invulnerable_time = settings.POWERUP_DURATION
+        elif kind == "slowE":
+            pass
+        elif kind == "fastP":
+            pass
 
     def draw(self):
         if self.state == "menu":
@@ -187,6 +214,8 @@ class Game:
         elif self.state == "playing":
             self.screen.blit(self.background, (0, 0))
             self.milk.draw(self.screen)
+            if self.powerup:
+                self.powerup.draw(self.screen)
             if self.invulnerable_time == 0 or int(self.invulnerable_time * 10) % 2 == 0:
                 self.player.draw(self.screen)
             for enemy in self.enemies:

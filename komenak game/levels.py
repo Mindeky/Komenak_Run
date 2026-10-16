@@ -9,6 +9,7 @@ LEVELS = [
         "name": "Blazej's lounge",
         "milk": 3,
         "enemies": [{"image": "blazej.png", "powers": True}],
+        "powerups": ["shield"],
     },
     {
         "name": "Detention",
