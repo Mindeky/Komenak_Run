@@ -68,7 +68,11 @@ class Game:
         self.score = 0
         self.goal = 0
         self.state = "playing"
+        self.player_lives = settings.PLAYER_LIVES
+        self.invulnerable_time = 0
+
         self.load_level()
+
 
         self.state = "menu"
 
@@ -77,6 +81,8 @@ class Game:
         self.goal = level["milk"]
         self.score = 0
         self.state = "playing"
+        self.player_lives = settings.PLAYER_LIVES
+        self.invulnerable_time = 0
         self.hit_sound.stop()
 
         count = len(level["enemies"])
@@ -132,6 +138,8 @@ class Game:
         if self.state != "playing":
             return
 
+        self.invulnerable_time = max(0, self.invulnerable_time - self.dt)
+
         self.banner_time = max(0, self.banner_time - self.dt)
 
         keys = pygame.key.get_pressed()
@@ -151,14 +159,21 @@ class Game:
                 self.milk.move_to_random_spot(self.player)
 
         # collision with the enemy
-        for enemy in self.enemies:
-            if enemy.rect.colliderect(self.player.rect):
-                self.big_enemy = pygame.transform.scale(
-                    enemy.original, (settings.WIDTH, settings.HEIGHT)
-                )
-                self.state = "lost"
-                self.hit_sound.play(-1)
-                break
+        if self.invulnerable_time == 0:
+            for enemy in self.enemies:
+                if enemy.rect.colliderect(self.player.rect):
+                    self.player_lives -= 1
+                    if self.player_lives <= 0:
+                        self.big_enemy = pygame.transform.scale(
+                            enemy.original, (settings.WIDTH, settings.HEIGHT)
+                        )
+                        self.state = "lost"
+                        self.hit_sound.play(-1)
+                    else:
+                        self.invulnerable_time = settings.INVULERABLE_TIME
+                        self.player.reset()
+                    break
+
 
     def draw(self):
         if self.state == "menu":
@@ -172,7 +187,8 @@ class Game:
         elif self.state == "playing":
             self.screen.blit(self.background, (0, 0))
             self.milk.draw(self.screen)
-            self.player.draw(self.screen)
+            if self.invulnerable_time == 0 or int(self.invulnerable_time * 10) % 2 == 0:
+                self.player.draw(self.screen)
             for enemy in self.enemies:
                 enemy.draw(self.screen)
             name = LEVELS[self.level_index]["name"]
@@ -190,6 +206,10 @@ class Game:
                 alpha = min(1,self.banner_time) * 255
                 self.banner_text.set_alpha(int(alpha))
                 self.draw_centered(self.banner_text, 300)
+
+            for i in range(self.player_lives):
+                pygame.draw.circle(self.screen, "red", (settings.WIDTH - 30 - i * 40,30), 14)
+                pygame.draw.circle(self.screen, "white", (settings.WIDTH - 30 - i * 40, 30), 14, 2)
 
         elif self.state == "paused":
             self.screen.blit(self.overlay, (0, 0))
