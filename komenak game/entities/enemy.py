@@ -5,12 +5,13 @@ from settings import ENEMY_START_SPEED, ENEMY_MAX_SPEED, ENEMY_MAX_SIZE
 
 
 class Enemy:
-    def __init__(self,image,x=settings.WIDTH / 2, powers=True,
+    def __init__(self,image,x=settings.WIDTH / 2,y = settings.HEIGHT / 2, powers=True,
                  start_speed = ENEMY_START_SPEED,
                  max_speed = ENEMY_MAX_SPEED,
                  max_size = ENEMY_MAX_SIZE):
         self.original = pygame.image.load(settings.asset(image)).convert_alpha()
         self.start_x = x
+        self.start_y = y
         self.powers = powers
         self.start_speed = start_speed
         self.max_speed = max_speed
@@ -19,7 +20,7 @@ class Enemy:
 
     def reset(self):
         self.size = settings.ENEMY_START_SIZE
-        self.pos = pygame.Vector2(self.start_x, settings.HEIGHT / 2)
+        self.pos = pygame.Vector2(self.start_x, self.start_y)
         self.speed_x = self.start_speed
         self.speed_y = self.start_speed
         self.rescale_image()
@@ -84,6 +85,33 @@ class Enemy:
                                        self.max_speed)
             if action == 2:
                 self.grow()
+
+    def bounce(self, other):
+        if not self.rect.colliderect(other.rect):
+            return
+
+        overlapx = min(self.rect.right, other.rect.right) - max(self.rect.left, other.rect.left)
+        overlapy = min(self.rect.bottom, other.rect.bottom) - max(self.rect.top, other.rect.top)
+
+        if overlapx < overlapy:
+            self.speed_x, other.speed_x = other.speed_x, self.speed_x
+            push = overlapx / 2 + 1
+            if self.pos.x < other.pos.x:
+                self.pos.x -= push
+                other.pos.x += push
+            else:
+                self.pos.x += push
+                other.pos.x -= push
+        else:
+            self.speed_y, other.speed_y = other.speed_y, self.speed_y
+            push = overlapy / 2 + 1
+            if self.pos.y < other.pos.y:
+                self.pos.y -= push
+                other.pos.y += push
+            else:
+                self.pos.y += push
+                other.pos.y -= push
+
 
     @property
     def rect(self):

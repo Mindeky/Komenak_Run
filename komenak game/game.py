@@ -30,6 +30,25 @@ class Game:
         self.text_won = render_text(self.big_font,"YOU HAVE SURVIVED",  "green")
         self.overlay = pygame.Surface((settings.WIDTH, settings.HEIGHT), pygame.SRCALPHA)
 
+        #help
+        help_font = pygame.font.SysFont("arial", 28)
+        help_text = [
+            "Move with Arrow keys ",
+            "Pause the game with P",
+            "Fast quit ESC (keep this in mind)",
+            "Collect all milks to finish a level",
+            "Touching the enemy costs you a life",
+            "If the enemy touches you multiple times, i wish you luck",
+            
+            "Power ups:",
+            "   Blue: shield - invulnerable to the enemy",
+            "   Green: slowness - slows the enemy",
+            "   Orange: speed - speed boost",
+        ]
+        self.help_lines = [render_text(help_font, t, "white", outline=2) for t in help_text]
+        self.text_help_lines = render_text(self.big_font, "HELP", "white", outline=4)
+        self.text_back = render_text(help_font, "[return] BACK", "white", outline=2)
+
         #level name
         self.banner_text = None
         self.banner_time = 0
@@ -64,6 +83,9 @@ class Game:
         self.milk = Milk()
         self.enemies = []
 
+        self.shield_time = 0
+        self.powerup = None
+        self.powerup_timer = settings.POWERUP_SPAWN_TIME
         self.powerup_kinds = []
 
         # level state
@@ -73,6 +95,7 @@ class Game:
         self.state = "playing"
         self.player_lives = settings.PLAYER_LIVES
         self.invulnerable_time = 0
+        self.effects = {"slowE": 0, "fastP": 0}
 
         self.load_level()
 
@@ -86,6 +109,7 @@ class Game:
         self.state = "playing"
         self.player_lives = settings.PLAYER_LIVES
         self.invulnerable_time = 0
+        self.effects = {"slowE": 0, "fastP": 0}
         self.powerup_kinds = level.get("powerups", [])
         self.powerup = None
         self.powerup_timer = settings.POWERUP_SPAWN_TIME
@@ -103,8 +127,6 @@ class Game:
         self.banner_text = render_text(self.big_font, level["name"], "white")
         self.banner_time = 2.0
 
-        self.powerup_timer = settings.POWERUP_SPAWN_TIME #15
-
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -113,15 +135,23 @@ class Game:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.running = False
 
+            if self.state == "help":
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE:
+                    self.state = "menu"
+                continue
+
             if self.state == "menu":
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
                         self.menu_index = (self.menu_index - 1) % len(self.menu_options)
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
                         self.menu_index = (self.menu_index + 1) % len(self.menu_options)
                 elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                    if self.menu_options[self.menu_index] == "PLAY":
+                    choice = self.menu_options[self.menu_index]
+                    if choice == "PLAY":
                         self.state = "playing"
-                    else:
+                    elif choice == "HELP":
+                        self.state = "help"
+                    elif choice == "QUIT":
                         self.running = False
                 continue
 
@@ -149,11 +179,20 @@ class Game:
         self.invulnerable_time = max(0, self.invulnerable_time - self.dt)
         self.banner_time = max(0, self.banner_time - self.dt)
         self.powerup_timer = max(0, self.powerup_timer - self.dt)
+        self.shield_time = max(0, self.shield_time - self.dt)
+        for name in self.effects:
+            self.effects[name] = max(0,self.effects[name] - self.dt)
+
+        player_dt = self.dt * (settings.SPEED_ABILITY if self.effects["fastP"] > 0 else 1)
+        enemy_dt = self.dt * (settings.SLOW_ABILITY if self.effects["slowE"] > 0 else 1)
 
         keys = pygame.key.get_pressed()
-        self.player.update(self.dt, keys)
+        self.player.update(player_dt, keys)
         for enemy in self.enemies:
-            enemy.update(self.dt)
+            enemy.update(enemy_dt)
+        for i in range(len(self.enemies)):
+            for j in range(i + 1,len(self.enemies)):
+                self.enemies[i].bounce(self.enemies[j])
 
         # collecting milk
         if self.milk.is_collected(self.player):
@@ -179,7 +218,7 @@ class Game:
                 self.powerup = None
 
         # collision with the enemy
-        if self.invulnerable_time == 0:
+        if self.invulnerable_time == 0 and self.shield_time == 0:
             for enemy in self.enemies:
                 if enemy.rect.colliderect(self.player.rect):
                     self.player_lives -= 1
@@ -196,11 +235,11 @@ class Game:
 
     def apply_powerup(self, kind):
         if kind == "shield":
-            self.invulnerable_time = settings.POWERUP_DURATION
+            self.shield_time = settings.POWERUP_DURATION
         elif kind == "slowE":
-            pass
+            self.effects["slowE"] = settings.POWERUP_DURATION
         elif kind == "fastP":
-            pass
+            self.effects["fastP"] = settings.POWERUP_DURATION
 
     def draw(self):
         if self.state == "menu":
@@ -211,13 +250,21 @@ class Game:
                 text = self.menu_select[i] if i == self.menu_index else self.menu_normal[i]
                 self.draw_centered(text, 320 + i * 70)
 
+        elif self.state == "help":
+            self.screen.blit(self.big_player, (0,0))
+            self.screen.blit(self.overlay, (0,0))
+            self.draw_centered(self.text_help_lines, 70)
+            for i, line in enumerate(self.help_lines):
+                self.draw_centered(line, 160 + i * 45)
+                self.screen.blit(self.text_back, (600,10))
+
         elif self.state == "playing":
             self.screen.blit(self.background, (0, 0))
             self.milk.draw(self.screen)
             if self.powerup:
                 self.powerup.draw(self.screen)
             if self.invulnerable_time == 0 or int(self.invulnerable_time * 10) % 2 == 0:
-                self.player.draw(self.screen)
+                self.player.draw(self.screen, self.shield_time > 0)
             for enemy in self.enemies:
                 enemy.draw(self.screen)
             name = LEVELS[self.level_index]["name"]
@@ -227,9 +274,22 @@ class Game:
 
             bar_w, bar_h = 300, 20
             ratio = self.score / self.goal
-            print(self.score, self.goal,ratio)
             pygame.draw.rect(self.screen, "black", (10, 55, bar_w + 4, bar_h + 4),border_radius=6)
             pygame.draw.rect(self.screen, "white", (12, 57, bar_w * ratio, bar_h),border_radius=6)
+
+            active = [
+                ("Shield", self.shield_time,"blue"),
+                ("Slowness", self.effects["slowE"], "lightblue"),
+                ("Speed", self.effects["fastP"], "orange"),
+            ]
+            y = 90
+            for label, remaining, color in active:
+                if remaining > 0:
+                    pygame.draw.circle(self.screen, color, (25, y + 12), 10)
+                    pygame.draw.circle(self.screen, "white", (25, y + 12), 10,2)
+                    text = render_text(self.small_font, f"{label} {remaining:.1f}s", "white", outline=2)
+                    self.screen.blit(text, (45, y - 6))
+                    y += 40
 
             if self.banner_time > 0:
                 alpha = min(1,self.banner_time) * 255

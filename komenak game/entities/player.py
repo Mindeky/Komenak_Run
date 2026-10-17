@@ -8,6 +8,8 @@ class Player:
         self.image = pygame.transform.scale(
             image, (settings.PLAYER_SIZE, settings.PLAYER_SIZE)
         )
+        self.image_shield = self.image.copy()
+        self.image_shield.fill((0,80,160))
         self.start_x = x
         self.start_y = y
         self.pos = pygame.Vector2(x, y)
@@ -36,5 +38,6 @@ class Player:
         half = settings.PLAYER_SIZE / 2
         return pygame.Vector2(self.pos.x + half, self.pos.y + half)
 
-    def draw(self, screen):
-        screen.blit(self.image, self.pos)
+    def draw(self, screen, shielded= False):
+        image = self.image_shield if shielded else self.image
+        screen.blit(image, self.pos)
