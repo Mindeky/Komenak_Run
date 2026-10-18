@@ -1,3 +1,4 @@
+import asyncio
 import pygame
 import levels
 import settings
