@@ -2,14 +2,14 @@
 LEVELS = [
     {
         "name": "Civics class",
-        "milk": 2,
+        "milk": 15,
         "enemies": [{"image": "blazej.png", "powers": False}],
     },
     {
         "name": "Blazej's lounge",
-        "milk": 3,
+        "milk": 20,
         "enemies": [{"image": "blazej.png", "powers": True}],
-        "powerups": ["slowE","fastP"],
+        "powerups": ["shield"],
     },
     {
         "name": "Detention",
@@ -18,18 +18,22 @@ LEVELS = [
             {"image": "blazej.png", "powers": False},
             {"image": "chamilka.jpg", "powers": False, "y": 100},
         ],
+        "powerups": ["shield","fastP"],
     },
     {
         "name": "Principals office",
-        "milk": 5,
+        "milk": 20,
         "enemies": [
             {"image": "blazej.png", "powers": True},
             {"image": "chamilka.jpg", "powers": True},
         ],
+        "powerups": ["shield","slowE","fastP"],
     },
     {
         "name": "MACURA BOSSFIGHT",
         "milk": 50,
-        "enemies": [{"image": "macura.jpg"}],
+        "enemies": [],
+        "boss": {"image": "macura.jpg",},
+        "powerups": ["shield"],
     }
 ]

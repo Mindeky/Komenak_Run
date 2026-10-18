@@ -1,9 +1,11 @@
 import pygame
+import levels
 import settings
 import random
 from levels import LEVELS
 from entities.player import Player
 from entities.enemy import Enemy
+from entities.boss import Boss
 from entities.milk import Milk
 from entities.powerups import Powerup
 from ui import render_text
@@ -23,11 +25,11 @@ class Game:
         self.small_font = pygame.font.SysFont("arial", 36)
         self.text_title = render_text(self.big_font,"KOMENAK RUN", "white")
         self.text_lost = render_text(self.big_font,"YOUR EXPELLED!!!!!!", "red")
-        self.text_again = render_text(self.big_font,"AGAIN?? [space]", "white")
-        self.text_next = render_text(self.big_font,"NEXT LEVEL [space]",  "white")
+        self.text_again = render_text(self.big_font,"Try again? [space]", "white")
+        self.text_next = render_text(self.big_font,"Next level [space]",  "white")
         self.text_paused = render_text(self.big_font,"PAUSED", "red")
         self.text_complete = render_text(self.big_font,"LEVEL COMPLETED",  "green")
-        self.text_won = render_text(self.big_font,"YOU HAVE SURVIVED",  "green")
+        self.text_won = render_text(self.big_font,"YOU ESCAPED !!!",  "green")
         self.overlay = pygame.Surface((settings.WIDTH, settings.HEIGHT), pygame.SRCALPHA)
 
         #help
@@ -81,12 +83,16 @@ class Game:
         # game objects
         self.player = Player(370, 200)
         self.milk = Milk()
+        self.boss = None
         self.enemies = []
 
         self.shield_time = 0
         self.powerup = None
         self.powerup_timer = settings.POWERUP_SPAWN_TIME
         self.powerup_kinds = []
+
+        self.projectiles = []
+
 
         # level state
         self.level_index = 0
@@ -113,6 +119,9 @@ class Game:
         self.powerup_kinds = level.get("powerups", [])
         self.powerup = None
         self.powerup_timer = settings.POWERUP_SPAWN_TIME
+        self.projectiles = []
+        self.boss = Boss(**level["boss"]) if "boss" in level else None
+
         self.hit_sound.stop()
 
         count = len(level["enemies"])
@@ -194,6 +203,10 @@ class Game:
             for j in range(i + 1,len(self.enemies)):
                 self.enemies[i].bounce(self.enemies[j])
 
+        for p in self.projectiles:
+            p.update(self.dt)
+        self.projectiles = [p for p in self.projectiles if not p.is_offscreen()]
+
         # collecting milk
         if self.milk.is_collected(self.player):
             self.score += 1
@@ -221,17 +234,29 @@ class Game:
         if self.invulnerable_time == 0 and self.shield_time == 0:
             for enemy in self.enemies:
                 if enemy.rect.colliderect(self.player.rect):
-                    self.player_lives -= 1
-                    if self.player_lives <= 0:
-                        self.big_enemy = pygame.transform.scale(
-                            enemy.original, (settings.WIDTH, settings.HEIGHT)
-                        )
-                        self.state = "lost"
-                        self.hit_sound.play(-1)
-                    else:
-                        self.invulnerable_time = settings.INVULERABLE_TIME
-                        self.player.reset()
+                    self.hit_player(enemy.original)
                     break
+            else:
+                for p in self.projectiles:
+                    if p.rect.colliderect(self.player.rect):
+                        self.projectiles.remove(p)
+                        self.hit_player(self.boss.original if self.boss else self.enemies[0].original)
+                        break
+
+        #FINAL BOSS
+        if self.boss:
+            self.boss.update(enemy_dt, self.projectiles, self.player)
+
+    def hit_player(self,image):
+        self.player_lives -= 1
+        if self.player_lives <= 0:
+            self.big_enemy = pygame.transform.scale(image, (settings.WIDTH, settings.HEIGHT))
+            self.state = "lost"
+            self.hit_sound.play(-1)
+        else:
+            self.invulnerable_time = settings.INVULERABLE_TIME
+            self.player.reset()
+
 
     def apply_powerup(self, kind):
         if kind == "shield":
@@ -267,15 +292,21 @@ class Game:
                 self.player.draw(self.screen, self.shield_time > 0)
             for enemy in self.enemies:
                 enemy.draw(self.screen)
+            if self.boss:
+                self.boss.draw(self.screen)
+            for p in self.projectiles:
+                p.draw(self.screen)
+
             name = LEVELS[self.level_index]["name"]
             score_text = render_text(
                 self.small_font, f"{name}       Milk: {self.score} / {self.goal}", "white", outline=2)
             self.screen.blit(score_text, (10,10))
 
-            bar_w, bar_h = 300, 20
-            ratio = self.score / self.goal
-            pygame.draw.rect(self.screen, "black", (10, 55, bar_w + 4, bar_h + 4),border_radius=6)
-            pygame.draw.rect(self.screen, "white", (12, 57, bar_w * ratio, bar_h),border_radius=6)
+            if not self.boss:
+                bar_w, bar_h = 300, 20
+                ratio = self.score / self.goal
+                pygame.draw.rect(self.screen, "black", (10, 55, bar_w + 4, bar_h + 4),border_radius=6)
+                pygame.draw.rect(self.screen, "white", (12, 57, bar_w * ratio, bar_h),border_radius=6)
 
             active = [
                 ("Shield", self.shield_time,"blue"),
@@ -299,6 +330,17 @@ class Game:
             for i in range(self.player_lives):
                 pygame.draw.circle(self.screen, "red", (settings.WIDTH - 30 - i * 40,30), 14)
                 pygame.draw.circle(self.screen, "white", (settings.WIDTH - 30 - i * 40, 30), 14, 2)
+
+            if self.boss:
+                hp_ratio = 1 - self.score / self.goal
+                bar_w = 600
+                x = (settings.WIDTH - bar_w) // 2
+                y = settings.HEIGHT - 30
+                pygame.draw.rect(self.screen, "black", (x - 2,y - 2, bar_w + 4, 24),border_radius=6)
+                if hp_ratio > 0:
+                    pygame.draw.rect(self.screen, "red", (x, y, bar_w * hp_ratio, 20), border_radius=6)
+                label = render_text(self.small_font, "BOSS", "white", outline=2)
+                self.screen.blit(label, (x, y - 42))
 
         elif self.state == "paused":
             self.screen.blit(self.overlay, (0, 0))
